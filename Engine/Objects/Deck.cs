@@ -5,18 +5,24 @@ using Engine.Enums;
 
 namespace Engine.Objects
 {
-    public class Deck
+    internal class Deck
     {
         private readonly Queue<Card> _deck;
 
-        public Deck()
+        internal Deck()
         {
             _deck = new Queue<Card>(GetInitialCollection());
         }
 
-        public Card TakeFirst()
+        internal Card TakeFirst()
         {
             return _deck.Dequeue();
+        }
+
+        internal void Shuffle()
+        {
+            var r = new Random();
+            _deck.OrderBy(x => r.Next());
         }
         
         private static IEnumerable<Card> GetInitialCollection()
@@ -34,10 +40,8 @@ namespace Engine.Objects
                     });
                 }
             }
-
-            var r = new Random();
             
-            return cards.OrderBy(x => r.Next());
+            return cards;
         }
     }
 }
