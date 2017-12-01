@@ -1,19 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Engine.Enums;
 
 namespace Engine.Objects
 {
     internal class Round
     {
+        private Game Game { get; }
         private Street? Street { get; set; }
         private List<Card> Board { get; } = new List<Card>();
+        private int Pot { get; set; }
+        private int Dealer { get; set; }
 
-        internal void StartStreet(Player[] players, Deck deck)
+        public Round(Game game)
+        {
+            Game = game;
+        }
+        
+        internal void StartStreet()
         {
             SetNextStreet();
-            DealCardsToPlayers(players, deck);
-            DealCardsToBoard(deck);
+            DealCardsToPlayers();
+            DealCardsToBoard();
+            MoveDealer();
         }
 
 
@@ -46,16 +56,16 @@ namespace Engine.Objects
             }
         }
         
-        private void DealCardsToPlayers(IEnumerable<Player> players, Deck deck)
+        private void DealCardsToPlayers()
         {
-            foreach (var player in players)
+            foreach (var player in Game.Players)
             {
-                player?.Cards.Add(deck.TakeFirst());
-                player?.Cards.Add(deck.TakeFirst());
+                player?.Cards.Add(Game.Deck.TakeFirst());
+                player?.Cards.Add(Game.Deck.TakeFirst());
             }
         }
 
-        private void DealCardsToBoard(Deck deck)
+        private void DealCardsToBoard()
         {
             switch (Street)
             {
@@ -67,24 +77,61 @@ namespace Engine.Objects
 
                 case Enums.Street.Flop:
                     if (Board.Count > 0) throw new Exception("The board must be empty!");
-                    Board.Add(deck.TakeFirst());
-                    Board.Add(deck.TakeFirst());
-                    Board.Add(deck.TakeFirst());
+                    Board.Add(Game.Deck.TakeFirst());
+                    Board.Add(Game.Deck.TakeFirst());
+                    Board.Add(Game.Deck.TakeFirst());
                     break;
 
                 case Enums.Street.Turn:
                     if (Board.Count != 3) throw new Exception("The board must contain 3 cards!");
-                    Board.Add(deck.TakeFirst());
+                    Board.Add(Game.Deck.TakeFirst());
                     break;
                     
                 case Enums.Street.River:
                     if (Board.Count != 4) throw new Exception("The board must contain 4 cards!");
-                    Board.Add(deck.TakeFirst());
+                    Board.Add(Game.Deck.TakeFirst());
                     break;
                     
                 default:
-                    throw new Exception("Detected the attempt to deal cards to the board with unrecognized street type!");
+                    throw new Exception(
+                        $"Detected the attempt to deal cards to the board with unrecognized street type: {Street}!");
             }
+        }
+
+        private void MoveDealer()
+        {
+            Dealer++;
+            
+            if (Dealer == Game.Players.Length)
+            {
+                Dealer = 0;
+            }
+
+            if (Game.Players[Dealer].Stack == 0)
+            {
+                Dealer++;
+            }
+        }
+
+        private void PutBlinds()
+        {
+            var timeElapsed = Game.StartTimeUtc - DateTime.UtcNow;
+            
+        }
+
+        private int GetSmallBlind(TimeSpan timeElapsed)
+        {
+            if (Game.BlindStructure.SmallBlinds != null &&
+                Game.BlindStructure.SmallBlinds.Keys.Any(x => x <= timeElapsed))
+            {
+                var currentTimeSpan = Game.BlindStructure.SmallBlinds.Keys
+                    .Where(x => x <= timeElapsed)
+                    .Max();
+
+                return Game.BlindStructure.SmallBlinds[currentTimeSpan];
+            }
+
+            return Game.BlindStructure.StartValue;
         }
     }
 }

@@ -6,6 +6,8 @@ namespace Engine.Objects
     {
         internal string Id { get; set; }
         
+        internal int Stack { get; set; }
+        
         internal List<Card> Cards { get; } = new List<Card>();
     }
 }
