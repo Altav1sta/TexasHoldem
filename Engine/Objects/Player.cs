@@ -8,6 +8,8 @@ namespace Engine.Objects
         
         internal int Stack { get; set; }
         
-        internal List<Card> Cards { get; } = new List<Card>();
+        internal int CurrentBet { get; set; }
+        
+        internal IReadOnlyCollection<Card> Cards { get; set; }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using Engine.Enums;
 
@@ -7,131 +6,132 @@ namespace Engine.Objects
 {
     internal class Round
     {
-        private Game Game { get; }
-        private Street? Street { get; set; }
-        private List<Card> Board { get; } = new List<Card>();
-        private int Pot { get; set; }
-        private int Dealer { get; set; }
+        private readonly Card[] board = new Card[5];
+        private readonly Game game;
+        private readonly int smallBlind;
+        private Street? street;
+        private int roundPot;
+        private int streetPot;
 
-        public Round(Game game)
+        internal Round(Game game)
         {
-            Game = game;
+            this.game = game;
+            smallBlind = GetSmallBlind(DateTime.UtcNow - game.StartTimeUtc);
         }
-        
-        internal void StartStreet()
+
+        public void StartStreet()
         {
             SetNextStreet();
             DealCardsToPlayers();
-            DealCardsToBoard();
-            MoveDealer();
-        }
 
+            if (street.HasValue && street != Street.Preflop)
+            {
+                DealCardsToBoard();
+            }
+            else
+            {
+                if (!game.Players.MoveDealer()) throw new Exception("Can't move dealer button");
+                
+                PutBlinds();
+            }
+        }
 
         private void SetNextStreet()
         {
-            switch (Street)
+            switch (street)
             {
                 case null:
-                    Street = Enums.Street.Preflop;
+                    street = Street.Preflop;
+                    return;
+                case Street.Preflop:
+                    street = Street.Flop;
                     break;
-                    
-                case Enums.Street.Preflop:
-                    Street = Enums.Street.Flop;
+                case Street.Flop:
+                    street = Street.Turn;
                     break;
-                    
-                case Enums.Street.Flop:
-                    Street = Enums.Street.Turn;
+                case Street.Turn:
+                    street = Street.River;
                     break;
-                    
-                case Enums.Street.Turn:
-                    Street = Enums.Street.River;
-                    break;
-                    
-                case Enums.Street.River:
-                    Street = null;
-                    break;
-                    
+                case Street.River:
+                    street = null;
+                    return;
                 default:
-                    throw new Exception("Can't switch street from unrecognized street type");
+                    throw new Exception($"Unrecognized street type {street}");
             }
         }
-        
+
         private void DealCardsToPlayers()
         {
-            foreach (var player in Game.Players)
+            foreach (var player in game.Players)
             {
-                player?.Cards.Add(Game.Deck.TakeFirst());
-                player?.Cards.Add(Game.Deck.TakeFirst());
+                player.Cards = new[] { game.Deck.TakeFirst(), game.Deck.TakeFirst() };
             }
         }
 
         private void DealCardsToBoard()
         {
-            switch (Street)
+            switch (street)
             {
                 case null:
-                    throw new Exception("You are trying to deal cards before preflop started!");
-                    
-                case Enums.Street.Preflop:
-                    throw new Exception("Can't deal cards to the board during the preflop street!");
+                    throw new Exception("An attempt to deal cards to the board before preflop started");
 
-                case Enums.Street.Flop:
-                    if (Board.Count > 0) throw new Exception("The board must be empty!");
-                    Board.Add(Game.Deck.TakeFirst());
-                    Board.Add(Game.Deck.TakeFirst());
-                    Board.Add(Game.Deck.TakeFirst());
+                case Street.Preflop:
+                    throw new Exception("An attempt to deal cards to the board during the preflop street!");
+
+                case Street.Flop:
+                    board[0] = game.Deck.TakeFirst();
+                    board[1] = game.Deck.TakeFirst();
+                    board[2] = game.Deck.TakeFirst();
                     break;
 
-                case Enums.Street.Turn:
-                    if (Board.Count != 3) throw new Exception("The board must contain 3 cards!");
-                    Board.Add(Game.Deck.TakeFirst());
+                case Street.Turn:
+                    board[3] = game.Deck.TakeFirst();
                     break;
-                    
-                case Enums.Street.River:
-                    if (Board.Count != 4) throw new Exception("The board must contain 4 cards!");
-                    Board.Add(Game.Deck.TakeFirst());
+
+                case Street.River:
+                    board[4] = game.Deck.TakeFirst();
                     break;
-                    
+
                 default:
                     throw new Exception(
-                        $"Detected the attempt to deal cards to the board with unrecognized street type: {Street}!");
-            }
-        }
-
-        private void MoveDealer()
-        {
-            Dealer++;
-            
-            if (Dealer == Game.Players.Length)
-            {
-                Dealer = 0;
-            }
-
-            if (Game.Players[Dealer].Stack == 0)
-            {
-                Dealer++;
+                        $"An attempt to deal cards to the board with unrecognized street type: {street}!");
             }
         }
 
         private void PutBlinds()
         {
-            var timeElapsed = Game.StartTimeUtc - DateTime.UtcNow;
-            
+            var blindValue = smallBlind;
+
+            foreach (var player in game.Players)
+            {
+                if (player.Stack == 0) continue;
+
+                if (player.Stack < blindValue)
+                {
+                    player.CurrentBet = player.Stack;
+                    player.Stack = 0;
+                }
+                else
+                {
+                    player.CurrentBet = blindValue;
+                    player.Stack -= blindValue;
+                }
+
+                if (blindValue == smallBlind * 2) break;
+
+                blindValue *= 2;
+            }
         }
 
         private int GetSmallBlind(TimeSpan timeElapsed)
         {
-            if (Game.BlindStructure.SmallBlinds != null &&
-                Game.BlindStructure.SmallBlinds.Keys.Any(x => x <= timeElapsed))
+            if (!game.BlindStructure.SmallBlinds?.Keys.Any(x => x <= timeElapsed) ?? true)
             {
-                var currentTimeSpan = Game.BlindStructure.SmallBlinds.Keys
-                    .Where(x => x <= timeElapsed)
-                    .Max();
-
-                return Game.BlindStructure.SmallBlinds[currentTimeSpan];
+                return game.BlindStructure.StartValue;
             }
 
-            return Game.BlindStructure.StartValue;
+            var currentTimeSpan = game.BlindStructure.SmallBlinds.Keys.Where(x => x <= timeElapsed).Max();
+            return game.BlindStructure.SmallBlinds[currentTimeSpan];
         }
     }
 }

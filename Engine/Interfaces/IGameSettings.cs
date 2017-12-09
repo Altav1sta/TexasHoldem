@@ -2,10 +2,10 @@
 {
     public interface IGameSettings
     {
-        int PlayersCount { get; set; }
+        int InitialStack { get; }
         
-        int InitialStack { get; set; }
+        int? Seed { get; }
         
-        IBlindStructure BlindStructure { get; set; }
+        IBlindStructure BlindStructure { get; }
     }
 }

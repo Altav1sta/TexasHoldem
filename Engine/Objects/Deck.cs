@@ -7,22 +7,24 @@ namespace Engine.Objects
 {
     internal class Deck
     {
-        private readonly Queue<Card> _deck;
+        private readonly int? seed;
+        private Queue<Card> deck;
 
-        internal Deck()
+        internal Deck(int? seed)
         {
-            _deck = new Queue<Card>(GetInitialCollection());
+            this.seed = seed;
+            deck = new Queue<Card>(GetInitialCollection());
         }
 
         internal Card TakeFirst()
         {
-            return _deck.Dequeue();
+            return deck.Dequeue();
         }
 
         internal void Shuffle()
         {
-            var r = new Random();
-            _deck.OrderBy(x => r.Next());
+            var r = seed.HasValue ? new Random(seed.Value) : new Random();
+            deck = new Queue<Card>(deck.OrderBy(x => r.Next()));
         }
         
         private static IEnumerable<Card> GetInitialCollection()
@@ -30,17 +32,11 @@ namespace Engine.Objects
             var cards = new List<Card>();
 
             foreach (Suit suit in Enum.GetValues(typeof(Suit)))
+            foreach (Rank rank in Enum.GetValues(typeof(Rank)))
             {
-                foreach (Rank rank in Enum.GetValues(typeof(Rank)))
-                {
-                    cards.Add(new Card
-                    {
-                        Rank = rank,
-                        Suit = suit
-                    });
-                }
+                cards.Add(new Card { Rank = rank, Suit = suit });
             }
-            
+
             return cards;
         }
     }
