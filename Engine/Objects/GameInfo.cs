@@ -8,6 +8,6 @@ namespace Engine.Objects
     {
         public IReadOnlyCollection<ActionType> AllowedActions { get; internal set; }
         
-        public IDictionary<DateTime, HistoryRecord> History { get; internal set; }
+        public IReadOnlyDictionary<DateTime, HistoryRecord> History { get; internal set; }
     }
 }

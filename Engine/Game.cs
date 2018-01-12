@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using Engine.Interfaces;
 using Engine.Objects;
@@ -38,7 +39,7 @@ namespace Engine
         {
             return new GameInfo
             {
-                History = History,
+                History = new ReadOnlyDictionary<DateTime, HistoryRecord>(History),
                 AllowedActions = round?.GetAllowedActions(playerId)
             };
         }

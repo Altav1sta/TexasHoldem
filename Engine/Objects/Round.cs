@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using Engine.Enums;
 
@@ -9,9 +11,8 @@ namespace Engine.Objects
         private readonly Card[] board = new Card[5];
         private readonly Game game;
         private readonly int smallBlind;
+        private readonly IList<PartialPot> pots = new List<PartialPot>();
         private Street? street;
-        private int roundPot;
-        private int streetPot;
 
         internal Round(Game game)
         {
@@ -22,21 +23,19 @@ namespace Engine.Objects
         internal void StartStreet()
         {
             SetNextStreet();
-            DealCardsToPlayers();
 
-            if (street.HasValue && street != Street.Preflop)
+            if (street != Street.Preflop)
             {
                 DealCardsToBoard();
             }
             else
             {
-                if (!game.Players.MoveDealer()) throw new Exception("Can't move dealer button");
-                
+                DealCardsToPlayers();
                 PutBlinds();
             }
         }
 
-        internal ActionType[] GetAllowedActions(string playerId)
+        internal IReadOnlyCollection<ActionType> GetAllowedActions(string playerId)
         {
             if (!IsCurrentActivePlayer(playerId)) return null;
 
@@ -86,6 +85,8 @@ namespace Engine.Objects
         {
             foreach (var player in game.Players)
             {
+                if (player.Stack <= 0) continue;
+                
                 player.Cards = new[] { game.Deck.TakeFirst(), game.Deck.TakeFirst() };
                 player.HasHoleCards = true;
             }
@@ -140,6 +141,21 @@ namespace Engine.Objects
                     player.Stack -= blindValue;
                 }
 
+                game.History[DateTime.UtcNow] = new HistoryRecord
+                {
+                    Round = game.RoundNumber,
+                    Street = Street.Preflop,
+                    Pots = new ReadOnlyCollection<PartialPot>(pots),
+                    Board = board,
+                    PlayerAction = new PlayerAction
+                    {
+                        PlayerId = player.Id,
+                        Type = ActionType.Blind,
+                        Value = player.CurrentBet
+                    },
+                    Players = game.Players
+                };
+                
                 if (blindValue == smallBlind * 2) break;
 
                 blindValue *= 2;

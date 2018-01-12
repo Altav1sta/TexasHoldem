@@ -54,6 +54,11 @@ namespace Engine.Objects
             return GetEnumerator();
         }
 
+        public int IndexOf(Player player)
+        {
+            return Array.IndexOf(players, player);
+        }
+        
         public bool MoveDealer()
         {
             using (var enumerator = GetEnumerator())

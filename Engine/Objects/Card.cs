@@ -15,7 +15,7 @@ namespace Engine.Objects
 
         private string GetRankString()
         {
-            return Rank < Rank.Ten ? $"{(int) Rank})" : Rank.ToString().Substring(0, 0);
+            return Rank < Rank.Ten ? $"{(int) Rank}" : Rank.ToString().Substring(0, 1);
         }
 
         private string GetSuitString()

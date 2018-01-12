@@ -1,21 +1,20 @@
-﻿using Engine.Enums;
+﻿using System.Collections.Generic;
+using Engine.Enums;
 
 namespace Engine.Objects
 {
     public class HistoryRecord
     {
-        public int Round { get; private set; }
+        public int Round { get; internal set; }
         
-        public Street Street { get; private set; }
+        public Street Street { get; internal set; }
         
-        public int MainPot { get; private set; }
+        public IReadOnlyCollection<PartialPot> Pots { get; internal set; }
         
-        public PartialPot[] PartialPots { get; private set; }
+        public IReadOnlyList<Card> Board { get; internal set; }
         
-        public Card[] Board { get; private set; }
+        public PlayerAction PlayerAction { get; internal set; }
         
-        public PlayerAction PlayerAction { get; private set; }
-        
-        public PlayersChain Players { get; private set; }
+        public PlayersChain Players { get; internal set; }
     }
 }

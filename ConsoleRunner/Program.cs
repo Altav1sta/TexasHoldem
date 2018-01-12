@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Engine;
 using Engine.Enums;
@@ -16,10 +17,12 @@ namespace ConsoleRunner
 
         private static Game game;
         private static HashSet<string> players = new HashSet<string>();
-        private static DateTime lastRequestTime;
+        private static DateTime lastInfoDisplayTime;
 
         private static void Main(string[] args)
         {
+            Console.OutputEncoding = Encoding.UTF8;
+            
             InitGame();
             StartGame();
 
@@ -31,11 +34,13 @@ namespace ConsoleRunner
                 {
                     Thread.Sleep(100);
                     
-                    lastRequestTime = DateTime.UtcNow;
                     var info = game.GetInfo(playerId);
 
                     Console.WriteLine($"-- {playerId} requested info --");
+                    
                     Print(info);
+                    lastInfoDisplayTime = DateTime.UtcNow;
+                    
                     Console.WriteLine();
 
                     if (info.AllowedActions == null) continue;
@@ -43,7 +48,7 @@ namespace ConsoleRunner
                     var action = GetUserAction(info.AllowedActions);
 
                     Console.WriteLine();
-                    Console.WriteLine($"Processsing action {action.Key}{action.Value} by player {playerId}...");
+                    Console.WriteLine($"Processing action {action.Key}{action.Value} by player {playerId}...");
                     Console.WriteLine();
                 }
             }
@@ -69,6 +74,10 @@ namespace ConsoleRunner
             Console.WriteLine("Starting the game...");
             
             SetPlayers();
+            
+            game.Start(players);
+
+            Console.WriteLine();
         }
         
         private static void SetPlayers()
@@ -88,41 +97,56 @@ namespace ConsoleRunner
 
                 players.Add(name);
             }
-            
-            game.Start(players);
-
-            Console.WriteLine();
         }
 
         private static void Print(GameInfo info)
         {
-            foreach (var record in info.History.Where(x => x.Key >= lastRequestTime).OrderBy(x => x.Key))
+            var newRecords = info.History
+                                 .Where(x => x.Key >= lastInfoDisplayTime)
+                                 .OrderBy(x => x.Key)
+                                 .ToList();
+            
+            foreach (var record in newRecords)
             {
                 Console.WriteLine($"Round: {record.Value.Round} Street: {record.Value.Street}");
                 Console.WriteLine("\t Pots:");
-                Console.WriteLine($"\t \t Main: {record.Value.MainPot}");
                 
-                foreach (var pot in record.Value.PartialPots)
+                foreach (var pot in record.Value.Pots)
                 {
-                    Console.WriteLine($"\t \t Partial: {pot.Value} ({string.Join(", ", pot.Players)})");
+                    Console.WriteLine($"\t \t Pot: {pot.Value} Participants: ({string.Join(", ", pot.Players)})");
                 }
 
                 Console.WriteLine("\t Players:");
                 
-                foreach (var player in record.Value.Players)
+                foreach (var player in record.Value.Players.OrderBy(x => record.Value.Players.IndexOf(x)))
                 {
                     var cardsString = string.Join(' ', player.Cards ?? Array.Empty<Card>());
                     var buttonString = player == record.Value.Players[record.Value.Players.Dealer]
                                            ? " (B)"
                                            : string.Empty;
-                    Console.WriteLine($"\t \t {player.Id}{buttonString}: [{cardsString}]");
+                    
+                    Console.Write($"\t \t Seat: {record.Value.Players.IndexOf(player) + 1}");
+                    Console.Write($"\t Cards: [{cardsString}]");
+                    Console.Write($"\t Hole: {player.HasHoleCards}");
+                    Console.Write($"\t Bet: {player.CurrentBet}");
+                    Console.WriteLine($"\t Name: {player.Id}{buttonString}");
                 }
 
-                Console.WriteLine($"\t Board: [{string.Join(' ', record.Value.Board as IEnumerable<Card>)}]");
-                Console.WriteLine($"\t {record.Value.PlayerAction.PlayerId} made {record.Value.PlayerAction.Type} {record.Value.PlayerAction.Value}");
+                Console.WriteLine($"\t Board: [{string.Join(' ', record.Value.Board.Distinct())}]");
+                Console.Write($"\t Player: {record.Value.PlayerAction.PlayerId} ");
+                Console.WriteLine($"Move: {record.Value.PlayerAction.Type} {record.Value.PlayerAction.Value}");
             }
 
-            Console.WriteLine($"Allowed actions: [{string.Join("] [", info.AllowedActions ?? Array.Empty<ActionType>())}]");
+            if (info.AllowedActions != null && info.AllowedActions.Count > 0)
+            {
+                Console.WriteLine($"Allowed actions: [{string.Join("] [", info.AllowedActions)}]");
+                return;
+            }
+
+            if (newRecords.Count == 0)
+            {
+                Console.WriteLine("No recent events");
+            }
         }
 
         private static KeyValuePair<ActionType, int?> GetUserAction(IReadOnlyCollection<ActionType> allowedActions)

@@ -2,6 +2,7 @@
 {
     public enum ActionType
     {
+        Blind,
         Fold,
         Call,
         Raise
