@@ -1,25 +1,48 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Engine.Objects
 {
-    internal class PlayersChain : IReadOnlyCollection<Player>
+    public class PlayersChain : IReadOnlyList<Player>
     {
-        private readonly ReadOnlyCollection<Player> players;
+        private readonly Player[] players;
 
         internal PlayersChain(IEnumerable<Player> players, int? seed)
         {
             var random = seed.HasValue ? new Random(seed.Value) : new Random(); 
-            this.players = players.OrderBy(x => random.Next()).ToList().AsReadOnly();
-            Dealer = random.Next(this.players.Count);
+            this.players = players.OrderBy(x => random.Next()).ToArray();
+            Dealer = random.Next(this.players.Length);
         }
 
+        public Player this[int index]
+        {
+            get
+            {
+                if (index < 0) throw new ArgumentOutOfRangeException();
+
+                index = index % players.Length;
+                
+                foreach (var player in players)
+                {
+                    index--;
+
+                    if (index < 0) return player;
+                }
+                
+                throw new Exception("Player not found");
+            }
+        }
+
+        public Player this[string id]
+        {
+            get { return players.FirstOrDefault(x => x.Id == id); }
+        }
+        
         public int Dealer { get; private set; }
 
-        public int Count => players.Count;
+        public int Count => players.Length;
 
         public IEnumerator<Player> GetEnumerator()
         {
@@ -37,7 +60,7 @@ namespace Engine.Objects
             {
                 if (!enumerator.MoveNext()) return false;
 
-                Dealer = players.IndexOf(enumerator.Current);
+                Dealer = Array.IndexOf(players, enumerator.Current);
             }
 
             return true;
@@ -57,19 +80,13 @@ namespace Engine.Objects
 
             public bool MoveNext()
             {
-                if (enumerated) return false;
-
                 position++;
 
-                if (position == collection.Count)
-                {
-                    position = 0;
-                }
-
-                if (position == collection.Dealer)
-                {
-                    enumerated = true;
-                }
+                if (position == collection.Count) position = 0;
+                
+                if (enumerated) return false;
+                
+                if (position == collection.Dealer) enumerated = true;
 
                 return true;
             }

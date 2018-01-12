@@ -19,7 +19,7 @@ namespace Engine.Objects
             smallBlind = GetSmallBlind(DateTime.UtcNow - game.StartTimeUtc);
         }
 
-        public void StartStreet()
+        internal void StartStreet()
         {
             SetNextStreet();
             DealCardsToPlayers();
@@ -34,6 +34,28 @@ namespace Engine.Objects
                 
                 PutBlinds();
             }
+        }
+
+        internal ActionType[] GetAllowedActions(string playerId)
+        {
+            if (!IsCurrentActivePlayer(playerId)) return null;
+
+            var maxBet = game.Players.Max(x => x.CurrentBet);
+
+            // no need to bet (call can be 0)
+            if (maxBet <= game.Players[playerId].CurrentBet)
+            {
+                return new[] { ActionType.Call, ActionType.Raise };
+            }
+
+            // call != all in
+            if (maxBet <= game.Players[playerId].Stack)
+            {
+                return new[] { ActionType.Call, ActionType.Fold, ActionType.Raise };
+            }
+            
+            // no money for raise
+            return new[] { ActionType.Call, ActionType.Fold };
         }
 
         private void SetNextStreet()
@@ -65,6 +87,7 @@ namespace Engine.Objects
             foreach (var player in game.Players)
             {
                 player.Cards = new[] { game.Deck.TakeFirst(), game.Deck.TakeFirst() };
+                player.HasHoleCards = true;
             }
         }
 
@@ -132,6 +155,43 @@ namespace Engine.Objects
 
             var currentTimeSpan = game.BlindStructure.SmallBlinds.Keys.Where(x => x <= timeElapsed).Max();
             return game.BlindStructure.SmallBlinds[currentTimeSpan];
+        }
+        
+        private bool IsCurrentActivePlayer(string playerId)
+        {
+            if (!street.HasValue) return false;
+            
+            using (var enumerator = game.Players.GetEnumerator())
+            {
+                var lastHistoryRecord = game.History.Count > 0 ? game.History.OrderBy(x => x.Key).Last().Value : null;
+                var lastActivePlayerInStreet =
+                    lastHistoryRecord?.Round == game.RoundNumber && lastHistoryRecord.Street == street
+                        ? lastHistoryRecord.PlayerAction.PlayerId
+                        : null;
+                
+                // if nobody made move in this street return flag depending on street type
+                if (lastActivePlayerInStreet == null)
+                {
+                    return street == Street.Preflop
+                        ? game.Players[2].Id == playerId
+                        : game.Players[0].Id == playerId;
+                }
+                
+                // move enumerator to last active player
+                while (enumerator.Current.Id != lastActivePlayerInStreet)
+                {
+                    enumerator.MoveNext();
+                }
+
+                // find next player with positive stack
+                while (true)
+                {
+                    enumerator.MoveNext();
+
+                    if (enumerator.Current.Stack > 0) 
+                        return enumerator.Current.Id == playerId;
+                }
+            }
         }
     }
 }

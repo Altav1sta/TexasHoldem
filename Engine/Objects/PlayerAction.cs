@@ -4,10 +4,10 @@ namespace Engine.Objects
 {
     public class PlayerAction
     {
-        public string PlayerId { get; set; }
+        public string PlayerId { get; internal set; }
         
-        public ActionType Type { get; set; }
+        public ActionType Type { get; internal set; }
 
-        public int? Value { get; set; }
+        public int? Value { get; internal set; }
     }
 }

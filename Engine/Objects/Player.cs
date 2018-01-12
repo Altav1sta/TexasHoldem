@@ -2,14 +2,16 @@
 
 namespace Engine.Objects
 {
-    internal class Player
+    public class Player
     {
-        internal string Id { get; set; }
+        public string Id { get; internal set; }
         
-        internal int Stack { get; set; }
+        public int Stack { get; internal set; }
         
-        internal int CurrentBet { get; set; }
+        public int CurrentBet { get; internal set; }
         
-        internal IReadOnlyCollection<Card> Cards { get; set; }
+        public IReadOnlyCollection<Card> Cards { get; internal set; }
+        
+        public bool HasHoleCards { get; internal set; }
     }
 }
