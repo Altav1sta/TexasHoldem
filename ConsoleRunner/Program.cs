@@ -48,7 +48,7 @@ namespace ConsoleRunner
                     var action = GetUserAction(info.AllowedActions);
 
                     Console.WriteLine();
-                    Console.WriteLine($"Processing action {action.Key}{action.Value} by player {playerId}...");
+                    Console.WriteLine($"Processing action {action.Key} {action.Value} by player {playerId}...");
                     Console.WriteLine();
                 }
             }
@@ -139,7 +139,7 @@ namespace ConsoleRunner
 
             if (info.AllowedActions != null && info.AllowedActions.Count > 0)
             {
-                Console.WriteLine($"Allowed actions: [{string.Join("] [", info.AllowedActions)}]");
+                Console.WriteLine($"Allowed actions: [{string.Join("] [", info.AllowedActions.Select(x => GetAllowedActionString(x)))}]");
                 return;
             }
 
@@ -149,7 +149,7 @@ namespace ConsoleRunner
             }
         }
 
-        private static KeyValuePair<ActionType, int?> GetUserAction(IReadOnlyCollection<ActionType> allowedActions)
+        private static KeyValuePair<ActionType, int?> GetUserAction(IReadOnlyCollection<AllowedAction> allowedActions)
         {
             while (true)
             {
@@ -161,7 +161,7 @@ namespace ConsoleRunner
 
                 if (action.Length > 0 && action.Length <= 2 && 
                     Enum.TryParse<ActionType>(formattedTypeString, out var type) &&
-                    allowedActions.Contains(type))
+                    allowedActions.Select(x => x.Type).Contains(type))
                 {
                     if (action.Length == 1)
                     {
@@ -176,6 +176,16 @@ namespace ConsoleRunner
 
                 Console.WriteLine($"Input data '{answer}' is incorrect. Try again please.");
             }
+        }
+
+        private static string GetAllowedActionString(AllowedAction action)
+        {
+            var rangeString = string.Empty;
+
+            if (action.Type == ActionType.Call) rangeString += $" {action.Min}";
+            if (action.Type == ActionType.Raise) rangeString += $" {action.Min}-{action.Max}";
+
+            return action.Type + rangeString;
         }
     }
 }

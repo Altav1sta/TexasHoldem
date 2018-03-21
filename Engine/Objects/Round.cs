@@ -35,26 +35,47 @@ namespace Engine.Objects
             }
         }
 
-        internal IReadOnlyCollection<ActionType> GetAllowedActions(string playerId)
+        internal IReadOnlyCollection<AllowedAction> GetAllowedActions(string playerId)
         {
             if (!IsCurrentActivePlayer(playerId)) return null;
 
             var maxBet = game.Players.Max(x => x.CurrentBet);
+            var player = game.Players[playerId];
+            var actions = new List<AllowedAction>();
 
-            // no need to bet (call can be 0)
-            if (maxBet <= game.Players[playerId].CurrentBet)
+            // no need to bet
+            if (maxBet == player.CurrentBet)
             {
-                return new[] { ActionType.Call, ActionType.Raise };
+                // check
+                actions.Add(new AllowedAction(ActionType.Call, 0, 0));
+                
+                if (player.Stack > 0)
+                {
+                    // all-in or raise at least 1BB
+                    var minRaise = Math.Min(2 * smallBlind, player.Stack);
+                    actions.Add(new AllowedAction(ActionType.Raise, minRaise, player.Stack));
+                }
             }
-
-            // call != all in
-            if (maxBet <= game.Players[playerId].Stack)
+            // have not enough money to call
+            else if (maxBet > player.Stack + player.CurrentBet)
             {
-                return new[] { ActionType.Call, ActionType.Fold, ActionType.Raise };
+                actions.Add(new AllowedAction(ActionType.Call, player.Stack, player.Stack)); // all in
+                actions.Add(new AllowedAction(ActionType.Fold));
+            }
+            else
+            {
+                actions.Add(new AllowedAction(ActionType.Call, maxBet - player.CurrentBet, maxBet - player.CurrentBet));
+                actions.Add(new AllowedAction(ActionType.Fold));
+                
+                if (player.Stack > 0)
+                {
+                    // all-in or raise at least 1BB
+                    var minRaise = Math.Min(2 * smallBlind, player.Stack);
+                    actions.Add(new AllowedAction(ActionType.Raise, minRaise, player.Stack));
+                }
             }
             
-            // no money for raise
-            return new[] { ActionType.Call, ActionType.Fold };
+            return actions;
         }
 
         private void SetNextStreet()
@@ -147,12 +168,7 @@ namespace Engine.Objects
                     Street = Street.Preflop,
                     Pots = new ReadOnlyCollection<PartialPot>(pots),
                     Board = board,
-                    PlayerAction = new PlayerAction
-                    {
-                        PlayerId = player.Id,
-                        Type = ActionType.Blind,
-                        Value = player.CurrentBet
-                    },
+                    PlayerAction = new PlayerAction(player.Id, ActionType.Blind, player.CurrentBet),
                     Players = game.Players
                 };
                 
